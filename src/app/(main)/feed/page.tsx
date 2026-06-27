@@ -102,7 +102,7 @@ function PostSlide({
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
 
       {/* Bottom left */}
-      <div className="absolute bottom-20 left-4 right-20 space-y-2">
+      <div className="absolute bottom-24 left-4 right-20 space-y-2">
         <Link href={`/profile/${post.user.username}`} className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-zinc-700 overflow-hidden border-2 border-white/30 relative flex-shrink-0">
             {post.user.image ? (
@@ -127,7 +127,7 @@ function PostSlide({
       </div>
 
       {/* Right side actions */}
-      <div className="absolute right-3 bottom-24 flex flex-col items-center gap-6">
+      <div className="absolute right-3 bottom-28 flex flex-col items-center gap-6">
         <div className="relative">
           <Link href={`/profile/${post.user.username}`}>
             <div className="w-12 h-12 rounded-full bg-zinc-700 overflow-hidden border-2 border-white relative">
