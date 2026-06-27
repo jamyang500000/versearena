@@ -1,0 +1,596 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  username      String    @unique
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  bio           String?
+  password      String?
+  coins         Int       @default(500) // starting coins
+  earningsCoins Int       @default(0)  // lifetime gift earnings (for payouts)
+  wins          Int       @default(0)
+  losses        Int       @default(0)
+  points        Int       @default(0)  // ranking points
+  notificationPrefs   Json?            // { likes, comments, follows, battleResults, gifts, crew }
+  privateProfile      Boolean          @default(false)
+  challengePermission ChallengePermission @default(EVERYONE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Auth
+  accounts Account[]
+  sessions Session[]
+
+  // Content
+  posts    Post[]
+  comments Comment[]
+  likes    Like[]
+
+  // Battles
+  battlesAsChallenger Battle[]     @relation("Challenger")
+  battlesAsOpponent   Battle[]     @relation("Opponent")
+  battleVotes         BattleVote[]
+  chatMessages        ChatMessage[]
+
+  // Social
+  followers Follow[] @relation("Following")
+  following Follow[] @relation("Follower")
+
+  // Ranking
+  ranking Ranking?
+
+  // Coins & Gifts
+  coinTransactions  CoinTransaction[]
+  giftsSent         Gift[]            @relation("GiftSender")
+  giftsReceived     Gift[]            @relation("GiftReceiver")
+
+  // Tournaments
+  tournamentEntries TournamentEntrant[]
+  tournamentWins    Tournament[]        @relation("TournamentWinner")
+
+  // Crews
+  ownedCrews  Crew[]       @relation("CrewOwner")
+  crewMember  CrewMember?
+
+  // Subscriptions
+  fanSubscriptions     FanSubscription[] @relation("FanSubs")
+  creatorSubscriptions FanSubscription[] @relation("CreatorSubs")
+
+  // Notifications
+  notifications     Notification[]
+  notificationsSent Notification[] @relation("NotificationSender")
+
+  // AI Judgements won
+  aiJudgementsWon AIJudgement[] @relation("AIWinner")
+
+  // DMs
+  conversationsAsA Conversation[] @relation("ParticipantA")
+  conversationsAsB Conversation[] @relation("ParticipantB")
+  sentMessages     DirectMessage[] @relation("DMSender")
+
+  // Report
+  reportsMade     Report[] @relation("ReportsMade")
+  reportsReceived Report[] @relation("ReportsReceived")
+
+  // Payouts
+  payoutRequests PayoutRequest[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────
+// CONTENT
+// ─────────────────────────────────────────────
+model Post {
+  id           String   @id @default(cuid())
+  userId       String
+  caption      String?
+  videoUrl     String
+  thumbnailUrl String?
+  duration     Float?
+  views        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  likes    Like[]
+  tags     Tag[]
+
+  @@index([userId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  content   String
+  parentId  String?
+  createdAt DateTime @default(now())
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([parentId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  posts Post[]
+}
+
+// ─────────────────────────────────────────────
+// BATTLES
+// ─────────────────────────────────────────────
+model Battle {
+  id               String       @id @default(cuid())
+  challengerId     String
+  opponentId       String?
+  title            String?
+  status           BattleStatus @default(PENDING)
+  winnerId         String?
+  roomCode         String       @unique @default(cuid())
+  livekitRoomName  String?      @unique
+  startedAt        DateTime?
+  endedAt          DateTime?
+  tournamentMatchId String?
+  createdAt        DateTime     @default(now())
+
+  challenger    User              @relation("Challenger", fields: [challengerId], references: [id])
+  opponent      User?             @relation("Opponent", fields: [opponentId], references: [id])
+  votes         BattleVote[]
+  chatMessages  ChatMessage[]
+  gifts         Gift[]
+  aiJudgement   AIJudgement?
+  tournamentMatch TournamentMatch? @relation(fields: [tournamentMatchId], references: [id])
+
+  @@index([challengerId])
+  @@index([status])
+}
+
+enum ChallengePermission {
+  EVERYONE
+  FOLLOWERS_ONLY
+  NOBODY
+}
+
+enum BattleStatus {
+  PENDING
+  WAITING
+  LIVE
+  VOTING
+  ENDED
+}
+
+model BattleVote {
+  id        String   @id @default(cuid())
+  battleId  String
+  userId    String
+  votedFor  String
+  createdAt DateTime @default(now())
+
+  battle Battle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  voter  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([battleId, userId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  battleId  String
+  userId    String
+  content   String
+  type      ChatMessageType @default(TEXT)
+  createdAt DateTime @default(now())
+
+  battle Battle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([battleId])
+}
+
+enum ChatMessageType {
+  TEXT
+  GIFT
+  SYSTEM
+  VOTE
+}
+
+// ─────────────────────────────────────────────
+// RANKINGS
+// ─────────────────────────────────────────────
+model Ranking {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  points    Int       @default(0)
+  rank      Int?
+  tier      RankTier  @default(BRONZE)
+  wins      Int       @default(0)
+  losses    Int       @default(0)
+  streak    Int       @default(0)
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum RankTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  DIAMOND
+  LEGEND
+}
+
+// ─────────────────────────────────────────────
+// COINS & GIFTS (V2)
+// ─────────────────────────────────────────────
+model CoinTransaction {
+  id        String      @id @default(cuid())
+  userId    String
+  amount    Int
+  type      CoinTxType
+  note      String?
+  createdAt DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum CoinTxType {
+  EARNED_WIN
+  EARNED_VOTE
+  SPENT_GIFT
+  PURCHASED
+  GIFTED_RECEIVED
+  SUBSCRIPTION_REWARD
+}
+
+model Gift {
+  id         String   @id @default(cuid())
+  battleId   String
+  senderId   String
+  receiverId String
+  giftType   GiftType
+  coinCost   Int
+  createdAt  DateTime @default(now())
+
+  battle   Battle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  sender   User   @relation("GiftSender", fields: [senderId], references: [id])
+  receiver User   @relation("GiftReceiver", fields: [receiverId], references: [id])
+
+  @@index([battleId])
+}
+
+enum GiftType {
+  FIRE       // 10 coins
+  MIC        // 50 coins
+  CROWN      // 100 coins
+  DIAMOND    // 500 coins
+  TROPHY     // 1000 coins
+}
+
+// ─────────────────────────────────────────────
+// TOURNAMENTS (V3)
+// ─────────────────────────────────────────────
+model Tournament {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  status      TournamentStatus @default(UPCOMING)
+  maxEntrants Int              @default(8)
+  prizeCoins  Int              @default(0)
+  startDate   DateTime
+  endDate     DateTime?
+  winnerId    String?
+  createdAt   DateTime         @default(now())
+
+  winner   User?               @relation("TournamentWinner", fields: [winnerId], references: [id])
+  entrants TournamentEntrant[]
+  matches  TournamentMatch[]
+}
+
+enum TournamentStatus {
+  UPCOMING
+  REGISTRATION
+  LIVE
+  ENDED
+}
+
+model TournamentEntrant {
+  id           String  @id @default(cuid())
+  tournamentId String
+  userId       String
+  seed         Int?
+  eliminated   Boolean @default(false)
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([tournamentId, userId])
+}
+
+model TournamentMatch {
+  id           String   @id @default(cuid())
+  tournamentId String
+  round        Int
+  position     Int
+  winnerId     String?
+  createdAt    DateTime @default(now())
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  battle     Battle[]
+}
+
+// ─────────────────────────────────────────────
+// CREWS / TEAMS (V3)
+// ─────────────────────────────────────────────
+model Crew {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  tag         String   @unique
+  description String?
+  logoUrl     String?
+  ownerId     String
+  wins        Int      @default(0)
+  losses      Int      @default(0)
+  points      Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  owner   User         @relation("CrewOwner", fields: [ownerId], references: [id])
+  members CrewMember[]
+}
+
+model CrewMember {
+  id       String   @id @default(cuid())
+  crewId   String
+  userId   String   @unique
+  role     CrewRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  crew Crew @relation(fields: [crewId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum CrewRole {
+  OWNER
+  CAPTAIN
+  MEMBER
+}
+
+// ─────────────────────────────────────────────
+// FAN SUBSCRIPTIONS (V3)
+// ─────────────────────────────────────────────
+model FanSubscription {
+  id        String   @id @default(cuid())
+  fanId     String
+  creatorId String
+  tier      SubTier  @default(SUPPORTER)
+  active    Boolean  @default(true)
+  startedAt DateTime @default(now())
+  renewsAt  DateTime?
+
+  fan     User @relation("FanSubs", fields: [fanId], references: [id], onDelete: Cascade)
+  creator User @relation("CreatorSubs", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@unique([fanId, creatorId])
+}
+
+enum SubTier {
+  SUPPORTER
+  SUPERFAN
+  RIDE_OR_DIE
+}
+
+// ─────────────────────────────────────────────
+// AI JUDGEMENT (V4)
+// ─────────────────────────────────────────────
+model AIJudgement {
+  id        String   @id @default(cuid())
+  battleId  String   @unique
+  provider  String   // "claude" | "openai"
+  winnerId  String
+  analysis  String   @db.Text
+  scores    Json
+  createdAt DateTime @default(now())
+
+  battle Battle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  winner User   @relation("AIWinner", fields: [winnerId], references: [id])
+}
+
+// ─────────────────────────────────────────────
+// SOCIAL & NOTIFICATIONS
+// ─────────────────────────────────────────────
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  fromUserId String?
+  type       NotificationType
+  message    String
+  read       Boolean          @default(false)
+  link       String?
+  createdAt  DateTime         @default(now())
+
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromUser User? @relation("NotificationSender", fields: [fromUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// DIRECT MESSAGES
+// ─────────────────────────────────────────────
+model Conversation {
+  id           String   @id @default(cuid())
+  participantA User     @relation("ParticipantA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantAId String
+  participantB User     @relation("ParticipantB", fields: [participantBId], references: [id], onDelete: Cascade)
+  participantBId String
+  lastMessageAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  messages DirectMessage[]
+
+  @@unique([participantAId, participantBId])
+  @@index([participantAId])
+  @@index([participantBId])
+}
+
+model DirectMessage {
+  id             String        @id @default(cuid())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  sender         User          @relation("DMSender", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId       String
+  content        String?       @db.Text
+  messageType    DMMessageType @default(TEXT)
+  audioUrl       String?       @db.Text
+  imageUrl       String?       @db.Text
+  audioDuration  Int?
+  isRead         Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
+}
+
+enum DMMessageType {
+  TEXT
+  AUDIO
+  IMAGE
+}
+
+// ─────────────────────────────────────────────
+// REPORT
+// ─────────────────────────────────────────────
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String
+  reportedId String
+  reason     ReportReason
+  details    String?
+  createdAt  DateTime     @default(now())
+
+  reporter User @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("ReportsReceived", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedId])
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  INAPPROPRIATE_CONTENT
+  FAKE_ACCOUNT
+  OTHER
+}
+
+// ─────────────────────────────────────────────
+// PAYOUTS
+// ─────────────────────────────────────────────
+model PayoutRequest {
+  id        String       @id @default(cuid())
+  userId    String
+  coins     Int          // coins being requested for payout
+  status    PayoutStatus @default(PENDING)
+  note      String?      // creator's payment method / contact info
+  adminNote String?      // admin response message
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  BATTLE_REQUEST
+  BATTLE_INVITE
+  BATTLE_RESULT
+  GIFT_RECEIVED
+  TOURNAMENT_START
+  CREW_INVITE
+  SUBSCRIPTION
+}
