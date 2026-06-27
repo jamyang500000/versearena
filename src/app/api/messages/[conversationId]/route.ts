@@ -76,6 +76,8 @@ export async function POST(req: Request, { params }: Params) {
     }),
   ]);
 
+  const otherUserId = conv.participantAId === userId ? conv.participantBId : conv.participantAId;
+
   db.user
     .findUnique({ where: { id: userId }, select: { name: true, username: true } })
     .then(sender => {
@@ -86,7 +88,7 @@ export async function POST(req: Request, { params }: Params) {
           ? `📷 ${sender?.name ?? sender?.username} sent you a photo`
           : `💬 ${sender?.name ?? sender?.username} sent you a message`;
       return db.notification.create({
-        data: { userId: receiverId, type: "FOLLOW", message: notifMessage, link: `/messages/${conversationId}` },
+        data: { userId: otherUserId, type: "FOLLOW", message: notifMessage, link: `/messages/${conversationId}` },
       });
     })
     .catch(() => {});
