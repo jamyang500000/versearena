@@ -20,7 +20,7 @@ export default async function RankingsPage() {
   });
 
   const myRanking = session?.user?.id
-    ? rankings.find((r) => r.userId === session.user.id)
+    ? rankings.find((r) => r.userId === session.user!.id)
     : null;
 
   return (
