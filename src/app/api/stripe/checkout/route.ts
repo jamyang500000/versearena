@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (!pkg) return NextResponse.json({ error: "Invalid package" }, { status: 400 });
 
   const Stripe = (await import("stripe")).default;
-  const stripe = new Stripe(stripeKey!, { apiVersion: "2024-06-20" });
+  const stripe = new Stripe(stripeKey!, { apiVersion: "2026-06-24.dahlia" });
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
