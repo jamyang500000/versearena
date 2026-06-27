@@ -319,9 +319,4 @@ export default function FeedPage() {
           />
         ))}
         <div className="h-screen snap-start flex items-center justify-center bg-black">
-          <div className="w-8 h-8 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
-        </div>
-      </div>
-    </div>
-  );
-}
+          <di

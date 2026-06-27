@@ -48,5 +48,4 @@ export async function POST(req: Request) {
     cancel_url: `${appUrl}/coins`,
   });
 
-  return NextResponse.json({ url: checkoutSession.url });
-}
+  return NextResponse.json({ url: checkoutSession.url

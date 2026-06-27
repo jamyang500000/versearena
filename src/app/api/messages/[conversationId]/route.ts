@@ -88,10 +88,4 @@ export async function POST(req: Request, { params }: Params) {
           ? `📷 ${sender?.name ?? sender?.username} sent you a photo`
           : `💬 ${sender?.name ?? sender?.username} sent you a message`;
       return db.notification.create({
-        data: { userId: otherUserId, type: "FOLLOW", message: notifMessage, link: `/messages/${conversationId}` },
-      });
-    })
-    .catch(() => {});
-
-  return NextResponse.json(message, { status: 201 });
-}
+        data: { userId: otherUserId, type: "FOLLOW", message: notifMessage, link: `/messages/${conversationId}`

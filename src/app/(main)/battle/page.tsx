@@ -276,13 +276,4 @@ export default function BattlePage() {
                     <p className="text-white font-semibold text-sm">{person.name ?? person.username}</p>
                     <p className="text-zinc-500 text-xs">@{person.username}</p>
                   </div>
-                  <span className="text-yellow-400 text-xs font-bold">Challenge →</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+                  <span className="text-yell
