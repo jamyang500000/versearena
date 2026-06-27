@@ -319,4 +319,15 @@ export default function FeedPage() {
           />
         ))}
         <div className="h-screen snap-start flex items-center justify-center bg-black">
-          <di
+          <div className="text-zinc-600 text-sm text-center">
+            {loadingMoreRef.current ? (
+              <span className="w-5 h-5 border-2 border-zinc-600 border-t-transparent rounded-full animate-spin inline-block" />
+            ) : (
+              <span>You&apos;ve seen it all 🎤</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
