@@ -31,7 +31,7 @@ export default async function TournamentDetailPage({ params }: PageProps) {
   if (!tournament) notFound();
 
   const isEntered = session?.user?.id
-    ? tournament.entrants.some((e) => e.userId === session.user.id)
+    ? tournament.entrants.some((e) => e.userId === session.user!.id)
     : false;
 
   const canEnter =
